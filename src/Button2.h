@@ -104,6 +104,7 @@ public:
   bool operator==(Button2 &rhs);
 
   void loop();
+  void loop(int8_t val);
 };
 /////////////////////////////////////////////////////////////////
 #endif

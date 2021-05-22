@@ -11,7 +11,7 @@
 /////////////////////////////////////////////////////////////////
 
 Button2::Button2() {  
-  pin = -1;
+  begin(-1, INPUT, false, true);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -30,11 +30,13 @@ void Button2::begin(byte attachTo, byte buttonMode /* = INPUT_PULLUP */, boolean
   setDoubleClickTime(DOUBLECLICK_MS);
   pressed = activeLow ? LOW : HIGH;
   state = activeLow ? HIGH : LOW;
-  if (!isCapacitive) {
-    pinMode(attachTo, buttonMode);
-  } else {
-    capacitive = true;
-  }	
+  if(pin > -1){
+    if (!isCapacitive) {
+      pinMode(attachTo, buttonMode);
+    } else {
+      capacitive = true;
+    }	
+  }
 }
 
 /////////////////////////////////////////////////////////////////
@@ -178,9 +180,13 @@ byte Button2::getClickType() const {
 /////////////////////////////////////////////////////////////////
 
 void Button2::loop() {
-  if (pin > -1) {
+  loop(-1);
+}
+
+void Button2::loop(int8_t val) {
+  unsigned long now = millis();
+  if (pin < 255) {
     prev_state = state;
-    unsigned long now = millis();
     if (!capacitive) {
       state = digitalRead(pin);
     } else {
@@ -189,83 +195,88 @@ void Button2::loop() {
         state = capa < CAPACITIVE_TOUCH_THRESHOLD ? LOW : HIGH;
       #endif
     }
-    // is button pressed?
-    if (state == pressed && prev_state != pressed) {
-      down_ms = now;
-      pressed_triggered = false;
-      click_ms = down_ms;
+  } else {
+    if(val > -1){
+      prev_state = state;
+      state = (byte) val;
+    }
+  } 
+  // is button pressed?
+  if (state == pressed && prev_state != pressed) {
+    down_ms = now;
+    pressed_triggered = false;
+    click_ms = down_ms;
 
-    // trigger pressed event (after debounce has passed)
-    } else if (state == pressed && !pressed_triggered && (now - down_ms >= debounce_time_ms)) {
-      pressed_triggered = true;
-      click_count++;
-      if (change_cb != NULL) change_cb (*this);      
-      if (pressed_cb != NULL) pressed_cb (*this);
+  // trigger pressed event (after debounce has passed)
+  } else if (state == pressed && !pressed_triggered && (now - down_ms >= debounce_time_ms)) {
+    pressed_triggered = true;
+    click_count++;
+    if (change_cb != NULL) change_cb (*this);      
+    if (pressed_cb != NULL) pressed_cb (*this);
 
-    // is the button released?
-    } else if (state != pressed && prev_state == pressed) {
-      down_time_ms = now - down_ms;
-      // is it beyond debounce time?
-      if (down_time_ms >= debounce_time_ms) {
-        // trigger release        
-        if (change_cb != NULL) change_cb (*this);
-        if (released_cb != NULL) released_cb (*this);
-        // trigger tap
-        if (tap_cb != NULL) tap_cb (*this);        
-        // was it a longclick? (preceeds single / double / triple clicks)
-        if (down_time_ms >= longclick_time_ms) {
-          longclick_detected = true;
-        }
+  // is the button released?
+  } else if (state != pressed && prev_state == pressed) {
+    down_time_ms = now - down_ms;
+    // is it beyond debounce time?
+    if (down_time_ms >= debounce_time_ms) {
+      // trigger release        
+      if (change_cb != NULL) change_cb (*this);
+      if (released_cb != NULL) released_cb (*this);
+      // trigger tap
+      if (tap_cb != NULL) tap_cb (*this);        
+      // was it a longclick? (preceeds single / double / triple clicks)
+      if (down_time_ms >= longclick_time_ms) {
+        longclick_detected = true;
       }
-
-    // is the button released and the time has passed for multiple clicks?
-    } else if (state != pressed && now - click_ms > doubleclick_time_ms) {
-      // was there a longclick?
-      if (longclick_detected) {
-        // was it part of a combination?
-        if (click_count == 1) {
-          last_click_type = LONG_CLICK;
-          if (long_cb != NULL) long_cb (*this);
-        }
-        longclick_detected = false;
-        longclick_detected_reported = false;
-        longclick_detected_counter = 0;
-        // determine the number of single clicks
-      } else if (click_count > 0) {
-        switch (click_count) {
-          case 1: 
-            last_click_type = SINGLE_CLICK;
-            if (click_cb != NULL) click_cb (*this);
-            break;
-          case 2: 
-            last_click_type = DOUBLE_CLICK;
-            if (double_cb != NULL) double_cb (*this);
-            break;
-          case 3: 
-            last_click_type = TRIPLE_CLICK;
-            if (triple_cb != NULL) triple_cb (*this);
-            break;
-        }
-      }
-      click_count = 0;
-      click_ms = 0;
     }
 
-    bool longclick_period_detected = now - down_ms >= (longclick_time_ms * (longclick_detected_counter + 1));
-
-    // check to see that the longclick_ms period has been exceeded and call the appropriate callback
-    if (state == pressed && longclick_period_detected && !longclick_detected_reported) {
-      longclick_detected_reported = true;
-      longclick_detected = true;
-      if (longclick_detected_retriggerable) {
-        // if it's retriggerable then we bump the counter and reset the "reported" flag (as the counter will stop the false trigger)
-        longclick_detected_counter++;
-        longclick_detected_reported = false;
+  // is the button released and the time has passed for multiple clicks?
+  } else if (state != pressed && now - click_ms > doubleclick_time_ms) {
+    // was there a longclick?
+    if (longclick_detected) {
+      // was it part of a combination?
+      if (click_count == 1) {
+        last_click_type = LONG_CLICK;
+        if (long_cb != NULL) long_cb (*this);
       }
+      longclick_detected = false;
+      longclick_detected_reported = false;
+      longclick_detected_counter = 0;
+      // determine the number of single clicks
+    } else if (click_count > 0) {
+      switch (click_count) {
+        case 1: 
+          last_click_type = SINGLE_CLICK;
+          if (click_cb != NULL) click_cb (*this);
+          break;
+        case 2: 
+          last_click_type = DOUBLE_CLICK;
+          if (double_cb != NULL) double_cb (*this);
+          break;
+        case 3: 
+          last_click_type = TRIPLE_CLICK;
+          if (triple_cb != NULL) triple_cb (*this);
+          break;
+      }
+    }
+    click_count = 0;
+    click_ms = 0;
+  }
+
+  bool longclick_period_detected = now - down_ms >= (longclick_time_ms * (longclick_detected_counter + 1));
+
+  // check to see that the longclick_ms period has been exceeded and call the appropriate callback
+  if (state == pressed && longclick_period_detected && !longclick_detected_reported) {
+    longclick_detected_reported = true;
+    longclick_detected = true;
+    if (longclick_detected_retriggerable) {
+      // if it's retriggerable then we bump the counter and reset the "reported" flag (as the counter will stop the false trigger)
+      longclick_detected_counter++;
+      longclick_detected_reported = false;
+    }
 //      longpress_detected_ms = now;
-      if (longclick_detected_cb != NULL)
-        longclick_detected_cb(*this);
-    }
+    if (longclick_detected_cb != NULL)
+      longclick_detected_cb(*this);
   }
 }
 
