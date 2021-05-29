@@ -30,6 +30,7 @@ void Button2::begin(byte attachTo, byte buttonMode /* = INPUT_PULLUP */, boolean
   setDoubleClickTime(DOUBLECLICK_MS);
   pressed = activeLow ? LOW : HIGH;
   state = activeLow ? HIGH : LOW;
+  /*
   if(pin > -1){
     if (!isCapacitive) {
       pinMode(attachTo, buttonMode);
@@ -37,6 +38,7 @@ void Button2::begin(byte attachTo, byte buttonMode /* = INPUT_PULLUP */, boolean
       capacitive = true;
     }	
   }
+  */
 }
 
 /////////////////////////////////////////////////////////////////
@@ -185,6 +187,7 @@ void Button2::loop() {
 
 void Button2::loop(int8_t val) {
   unsigned long now = millis();
+  /*
   if (pin < 255) {
     prev_state = state;
     if (!capacitive) {
@@ -195,12 +198,12 @@ void Button2::loop(int8_t val) {
         state = capa < CAPACITIVE_TOUCH_THRESHOLD ? LOW : HIGH;
       #endif
     }
-  } else {
+  } else { */
     if(val > -1){
       prev_state = state;
       state = (byte) val;
     }
-  } 
+  // } 
   // is button pressed?
   if (state == pressed && prev_state != pressed) {
     down_ms = now;
